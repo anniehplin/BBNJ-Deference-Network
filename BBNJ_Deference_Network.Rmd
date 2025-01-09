@@ -1,0 +1,406 @@
+---
+title: "BBNJ Deference Network"
+author: "Annie Hui-Ping Lin"
+date: "2024-07-29"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r, results=F}
+rm(list = ls())
+# Set a CRAN mirror
+options(repos = c(CRAN = "https://cran.r-project.org"))
+
+# Install the required packages
+install.packages("igraph")
+install.packages("gridExtra")
+install.packages("gridGraphics")
+install.packages("png")
+install.packages("ggraph")
+install.packages("ggplots")
+```
+
+## Network (whole)
+
+```{r}
+library(igraph)
+set.seed(2024)
+setwd("~/Library/CloudStorage/Dropbox/R_Projects") # change to your working directory
+deference <- read.csv("~/Library/CloudStorage/Dropbox/R_Projects/BBNJ_def_network.csv")
+
+## prepare network matrix
+IOs <- sort(intersect(as.character(deference$IO1), as.character(deference$IO2)))
+complex <- matrix(nrow=length(IOs), ncol=length(IOs))
+rownames(complex) <- colnames(complex) <-IOs
+for(i in 1:nrow(complex)){
+  sub <- deference[deference$IO1 == rownames(complex)[i],]
+  avg.def <- tapply(sub$Def.score.avg, sub$IO2, mean, na.rm=TRUE)
+  complex[i,] <- avg.def[match(rownames(complex), names(avg.def))]
+}
+diag(complex) <- 0 # because IO1 = IO2
+complex.graph <- graph_from_adjacency_matrix(complex, weighted = TRUE, mode="directed")
+layout.complex <- layout_nicely(complex.graph)
+
+## adjust node position for better visualization
+layout.complex[24,] <- c(-2.75, 3.3) # PIF
+layout.complex[32,] <- c(-3, 3) # WECAFC
+layout.complex[27,] <- c(-2.5, 2.9) # SPREP-Noumea
+layout.complex[14,] <- c(-3.5, 3.3) # IAC
+layout.complex[31,] <- c(-3.75, 2.9) # WCPFC
+layout.complex[15,] <- c(-4, 2.5) # IATTC
+layout.complex[18,] <- c(-2, 2.5) #ISA
+layout.complex[28,] <- c(-3.25, 2.5) # UNCLOS
+layout.complex[9,] <- c(-2.5, 2.5) # CITES
+layout.complex[19,] <- c(-4, 2.1) # NAFO
+layout.complex[20,] <- c(-1.75, 2.1) # NAMMCO
+layout.complex[6,] <- c(-1.75, 1.4) # CBD
+layout.complex[1,] <- c(-1.25, 0.9) # AC
+layout.complex[23,] <- c(-1.5, 1.2) # OSPAR
+layout.complex[17,] <- c(-2.25, 1.3) # IMO
+layout.complex[10,] <- c(-2.25, 2) # CMS
+layout.complex[11,] <- c(-3, 1.8) # FAO
+layout.complex[16,] <- c(-3.25, 1.2) # ICCAT
+layout.complex[21,] <- c(-2.75, 1) # NEAFC
+layout.complex[22,] <- c(-4.5, 2) # NPFC
+layout.complex[30,] <- c(-3.75, 1.8) # UNFSA
+layout.complex[3,] <- c(-1.5, 1.8) # ACPB
+layout.complex[5,] <- c(-2, 0.6) # Barcelona-SPA/BD
+layout.complex[4,] <- c(-3.25, 0.4) # ATS-EP
+layout.complex[29,] <- c(-2.5, 0.3) # UNECE-Espoo
+layout.complex[12,] <- c(-3.4, 0.6) # GFCM
+layout.complex[13,] <- c(-1.5, 0.4) # HELCOM
+layout.complex[7,] <- c(-2.75, 0.6) # CCAMLR
+layout.complex[2,] <- c(-3.75, 1.4) # ACAP
+layout.complex[26,] <- c(-4, 0.8) # SIOFA
+layout.complex[25,] <- c(-4.25, 1.2) # SEAFO
+layout.complex[8,] <- c(-4.5, 1.5) # CCSBT
+
+png("Fig1.png", width = 1200, height = 900)
+plot.igraph(complex.graph, 
+            edge.width = (E(complex.graph)$weight),
+            edge.color = "gray60",
+            edge.arrow.size = 0.1,
+            edge.curved = T,
+            vertex.color = "skyblue", 
+            vertex.label = V(complex.graph)$name,
+            vertex.label.color = "brown",
+            vertex.label.cex = 0.75,
+            vertex.label.font = 1, # Set font to bold
+            vertex.label.dist = c(0,0,0,-0.75,0,0,0,0,
+                                  0,0,0,0,-0.5,0.75,0,0,
+                                  0,0,0,0,0,0.75,0,0.75,
+                                  0,-0.75,0,0,-0.5,0,0,0.5),
+            vertex.size = colSums(complex),
+            layout = layout.complex, main = "1979-2023")
+
+dev.off()
+```
+
+## Network by interval 
+### 1979-1993
+
+```{r, warning=F}
+library(igraph)
+set.seed(2024)
+# Subset for 1979-1993
+period1 <- subset(deference, Def.year %in% 1979:1993)
+
+## prepare network matrix
+IOs.p1 <- sort(intersect(as.character(period1$IO1), as.character(period1$IO2)))
+complex <- matrix(nrow=length(IOs.p1), ncol=length(IOs.p1))
+rownames(complex) <- colnames(complex) <-IOs.p1
+for(i in 1:nrow(complex)){
+  sub <- period1[period1$IO1 == rownames(complex)[i],]
+  avg.def <- tapply(sub$Def.score.avg, sub$IO2, mean, na.rm=TRUE)
+  complex[i,] <- avg.def[match(rownames(complex), names(avg.def))]
+}
+diag(complex) <- 0
+
+## Create layout for later use
+complex.graph.p1 <- graph_from_adjacency_matrix(complex, weighted = TRUE, mode="directed")
+E(complex.graph.p1)$weight[is.na(E(complex.graph.p1)$weight)] <- 0 # Replace NaN with 0
+layout.complex.p1 <- layout_nicely(complex.graph.p1)
+```
+
+### 1994-2003
+
+```{r, warning=F}
+library(igraph)
+set.seed(2024)
+period2 <- subset(deference, Def.year %in% 1994:2003)
+
+## prepare network matrix
+IOs.p2 <- sort(intersect(as.character(period2$IO1), as.character(period2$IO2)))
+complex <- matrix(nrow = length(IOs.p2), ncol = length(IOs.p2))
+rownames(complex) <- colnames(complex) <- IOs.p2
+for (i in 1:nrow(complex)) {
+  sub <- period2[period2$IO1 == rownames(complex)[i], ]
+  avg.def <- tapply(sub$Def.score.avg, sub$IO2, mean, na.rm = TRUE)
+  complex[i, ] <- avg.def[match(rownames(complex), names(avg.def))]
+}
+diag(complex) <- 0
+
+## Create layout for later use
+complex.graph.p2 <- graph_from_adjacency_matrix(complex, weighted = TRUE, mode = "directed")
+E(complex.graph.p2)$weight[is.na(E(complex.graph.p2)$weight)] <- 0
+complex.graph.p2 <- delete_edges(complex.graph.p2, E(complex.graph.p2)[weight == 0])
+layout.complex.p2 <- layout_nicely(complex.graph.p2)
+
+## Layout adjustments for better visualization
+layout.complex.p2[8,] <- c(-0.8, 0.6) # CMS
+```
+
+### 2004-2013
+
+```{r, warning=F}
+library(igraph)
+set.seed(2024)
+period3 <- subset(deference, Def.year %in% 2004:2013)
+
+IOs.p3 <- sort(intersect(as.character(period3$IO1), as.character(period3$IO2)))
+complex <- matrix(nrow=length(IOs.p3), ncol=length(IOs.p3))
+rownames(complex) <- colnames(complex) <-IOs.p3
+for(i in 1:nrow(complex)){
+  sub <- period3[period3$IO1 == rownames(complex)[i],]
+  avg.def <- tapply(sub$Def.score.avg, sub$IO2, mean, na.rm=TRUE)
+  complex[i,] <- avg.def[match(rownames(complex), names(avg.def))]
+}
+diag(complex) <- 0
+
+## Create layout for later use
+complex.graph.p3 <- graph_from_adjacency_matrix(complex, weighted = TRUE, mode="directed")
+E(complex.graph.p3)$weight[is.na(E(complex.graph.p3)$weight)] <- 0
+complex.graph.p3 <- delete_edges(complex.graph.p3, E(complex.graph.p3)[weight == 0])
+layout.complex.p3 <- layout_nicely(complex.graph.p3)
+
+## Layout adjustments for better visualization
+layout.complex.p3[27,] <- c(0.2, 1.7) # UNCLOS
+layout.complex.p3[22,] <- c(-0.7, 0.5) # OSPAR
+layout.complex.p3[11,] <- c(-0.6, 2.7) # FAO
+layout.complex.p3[30,] <- c(-0.2, 3.1) # WCPFC
+layout.complex.p3[29,] <- c(0.3, 2) # UNFSA
+layout.complex.p3[16,] <- c(0, 2.5) # ICCAT
+layout.complex.p3[17,] <- c(-1.1, 0.8) # IMO
+layout.complex.p3[6,] <- c(-0.5, 0.9) # CBD
+layout.complex.p3[10,] <- c(-0.6, 1.9) # CMS
+layout.complex.p3[24,] <- c(-1.2, 2.3) # SEAFO
+layout.complex.p3[15,] <- c(0.3, 2.8) # IATTC
+```
+
+### 2014-2023
+
+```{r, warning=F}
+library(igraph)
+set.seed(2024)
+period4 <- subset(deference, Def.year %in% 2014:2023)
+
+## prepare network matrix
+IOs.p4 <- sort(intersect(as.character(period4$IO1), as.character(period4$IO2)))
+complex <- matrix(nrow=length(IOs.p4), ncol=length(IOs.p4))
+rownames(complex) <- colnames(complex) <- IOs.p4
+for(i in 1:nrow(complex)){
+  sub <- period4[period4$IO1 == rownames(complex)[i],]
+  avg.def <- tapply(sub$Def.score.avg, sub$IO2, mean, na.rm=TRUE)
+  complex[i,] <- avg.def[match(rownames(complex), names(avg.def))]
+}
+diag(complex) <- 0
+
+## Create layout for later use
+complex.graph.p4 <- graph_from_adjacency_matrix(complex, weighted = TRUE, mode="directed")
+E(complex.graph.p4)$weight[is.na(E(complex.graph.p4)$weight)] <- 0
+layout.complex.p4 <- layout_nicely(complex.graph.p4)
+
+## Layout adjustments for better visualization
+layout.complex.p4[32,] <- c(0.3, 1.5) # WECAFC
+layout.complex.p4[28,] <- c(0.3, 1.1) # UNCLOS
+layout.complex.p4[9,] <- c(0.1, 0.6) # CITES
+layout.complex.p4[17,] <- c(-0.9, 1) # IMO
+layout.complex.p4[10,] <- c(0, 0.1) # CMS
+layout.complex.p4[16,] <- c(0.1, 1.8) # ICCAT
+layout.complex.p4[30,] <- c(-0.3, 1.9) # UNFSA
+layout.complex.p4[12,] <- c(-1.3, 1.3) # GFCM
+layout.complex.p4[5,] <- c(-0.8, 0.2) # Barcelona
+layout.complex.p4[25,] <- c(-0.8, 2.4) # SEAFO
+layout.complex.p4[23,] <- c(-1.2, 0.6) # OSPAR
+layout.complex.p4[19,] <- c(-0.8, 1.8) # NAFO
+layout.complex.p4[26,] <- c(-0.4, 2.2) # SIOFA
+```
+
+## Community Detection
+
+```{r}
+library(igraph)
+library(cowplot)
+library(png)
+library(grid)
+set.seed(2024)
+
+# Community detection using walktrap
+cwt <- cluster_walktrap(complex.graph)
+modularity_value <- modularity(cwt)
+
+# Assign community colors to nodes
+community_colors <- rainbow(length(cwt))
+colors <- community_colors[membership(cwt)]
+
+png("Fig2.png", width = 1200, height = 900)
+plot(cwt, complex.graph,
+     layout = layout.complex,
+     edge.arrow.size = 0.1, 
+     edge.curved = F,
+     edge.width = E(complex.graph)$weight*0.8,
+     vertex.label = V(complex.graph)$name,
+     vertex.size = colSums(complex) * 0.75,
+     vertex.label.cex = 1,
+     vertex.label.font = 1,
+     vertex.label.dist = c(0,1.25,0.5,-0.75,0,0,0.5,-0.5,
+                           0,0,0,-0.5,-0.5,0.75,0,0,
+                           0,0.25,0.5,0.25,0.5,-0.5,0,0.75,
+                           -0.5,-0.75,0.5,0,-0.5,0,0,0.5),
+     vertex.label.color = V(complex.graph)$colors, main = "Community Detection (1979-2023)")
+
+dev.off()
+```
+
+### Community Detection for 4 Periods
+
+```{r, warning=F}
+set.seed(2024)
+# Define a consistent color palette for communities
+num_communities <- min(max(membership(cluster_walktrap(complex.graph.p1))),
+                       max(membership(cluster_walktrap(complex.graph.p2))),
+                       max(membership(cluster_walktrap(complex.graph.p3))),
+                       max(membership(cluster_walktrap(complex.graph.p4))))
+community_palette <- rainbow(num_communities)
+
+# Process Plot A in Figure 3
+cwt.p1 <- cluster_walktrap(complex.graph.p1)
+membership_p1 <- membership(cwt.p1)
+community_colors_p1 <- community_palette[membership_p1]
+
+png("plotA.png", width = 1200, height = 900)
+plot(cwt.p1, complex.graph.p1,
+     layout = layout.complex.p1,
+     edge.arrow.size = 0.3, 
+     edge.curved = FALSE,
+     edge.width = E(complex.graph.p1)$weight*0.75,
+     vertex.label = V(complex.graph.p1)$name,
+     vertex.size = colSums(complex, na.rm = TRUE)*0.75,
+     vertex.color = community_colors_p1,
+     vertex.label.cex = 1,
+     vertex.label.font = 1,
+     vertex.label.dist = c(0,0,0,0.5,0,0),
+     main = "Community Detection (1979-1993)", cex.main = 10)
+dev.off()
+
+# Process Plot B in Figure 3
+cwt.p2 <- cluster_walktrap(complex.graph.p2)
+membership_p2 <- membership(cwt.p2)
+community_colors_p2 <- community_palette[membership_p2]
+
+png("plotB.png", width = 1200, height = 900)
+plot(cwt.p2, complex.graph.p2,
+     layout = layout.complex.p2,
+     edge.arrow.size = 0.3, 
+     edge.curved = FALSE,
+     edge.width = E(complex.graph.p2)$weight*0.75,
+     vertex.label = V(complex.graph.p2)$name,
+     vertex.size = colSums(complex, na.rm = TRUE)*0.75,
+     vertex.color = community_colors_p2,
+     vertex.label.cex = 1,
+     vertex.label.font = 1,
+     vertex.label.dist = c(0, -0.75, -0.5, 0.75, -0.75, 0, 0, 1, 0, 0,
+                           0, 0, 1, 0.75, 0, 0, 0, 0, 0, -0.25),
+     main = "Community Detection (1994-2003)", cex.main = 10)
+dev.off()
+
+# Process Plot C in Figure 3
+cwt.p3 <- cluster_walktrap(complex.graph.p3)
+membership_p3 <- membership(cwt.p3)
+community_colors_p3 <- community_palette[membership_p3]
+
+png("plotC.png", width = 1200, height = 900)
+plot(cwt.p3, complex.graph.p3,
+     layout = layout.complex.p3,
+     edge.arrow.size = 0.3, 
+     edge.curved = FALSE,
+     edge.width = E(complex.graph.p3)$weight*0.75,
+     vertex.label = V(complex.graph.p3)$name,
+     vertex.size = colSums(complex, na.rm = TRUE)*0.75,
+     vertex.color = community_colors_p3,
+     vertex.label.cex = 1,
+     vertex.label.font = 1,
+     vertex.label.dist = c(0,1.25,-0.25,-0.25,0,0,0,0,0,0,
+                           0,-1,0,0.5,0.5,0,0,0,0,-0.25,
+                           0,-0.5,0,-0.75,0,1,0.5,0,1,0,0),
+     main = "Community Detection (2004-2013)", cex.main = 10)
+dev.off()
+
+# Process Plot D in Figure 3
+cwt.p4 <- cluster_walktrap(complex.graph.p4)
+membership_p4 <- membership(cwt.p4)
+community_colors_p4 <- community_palette[membership_p4]
+
+png("plotD.png", width = 1200, height = 900)
+plot(cwt.p4, complex.graph.p4,
+     layout = layout.complex.p4,
+     edge.arrow.size = 0.3, 
+     edge.curved = FALSE,
+     edge.width = E(complex.graph.p4)$weight*0.75,
+     vertex.label = V(complex.graph.p4)$name,
+     vertex.size = colSums(complex, na.rm = TRUE)*0.75,
+     vertex.color = community_colors_p4,
+     vertex.label.cex = 1,
+     vertex.label.font = 1,
+     vertex.label.dist = c(0,0,0,0.25,0,0,0,0.75,0,0,
+                           0,-0.5,0,0,0.25,0,0,0,0,0.5,
+                           0,0.75,0,0.5,0.5,0.75,1,0,0,0,0,-0.5),
+     main = "Community Detection (2014-2023)", cex.main = 10)
+dev.off()
+```
+
+
+### Combine Plots in Figure 3
+
+```{r, warning=F}
+library(ggplot2)
+library(grid)
+library(cowplot)
+library(png)
+
+# Read the PNGs back in
+plotA_image <- png::readPNG("plotA.png")
+plotB_image <- png::readPNG("plotB.png")
+plotC_image <- png::readPNG("plotC.png")
+plotD_image <- png::readPNG("plotD.png")
+
+par(mar = c(2, 2, 2, 2))
+# Convert the images to grobs
+plotA_grob <- rasterGrob(plotA_image, interpolate = TRUE)
+plotB_grob <- rasterGrob(plotB_image, interpolate = TRUE)
+plotC_grob <- rasterGrob(plotC_image, interpolate = TRUE)
+plotD_grob <- rasterGrob(plotD_image, interpolate = TRUE)
+
+# Combine the plots into a single grid
+combined_plot <- plot_grid(
+  plotA_grob, plotB_grob, plotC_grob, plotD_grob,
+  labels = c("A", "B", "C", "D"),  # Add labels
+  ncol = 2,                        # Arrange in 2 columns
+  align = "hv",                    # Align horizontally and vertically
+  label_x = 0.1,                   # Position labels closer to the plots (horizontal)
+  label_y = 0.95,                  # Position labels closer to the title (vertical)
+  hjust = 0,                       # Align labels left
+  vjust = 1                        # Align labels to the top
+)
+
+# Save the combined plot with reduced blank space
+ggsave(
+  filename = "Fig3.png",
+  plot = combined_plot,
+  dpi = 300,
+  width = 10,       # Adjust width to reduce blank space
+  height = 8,       # Adjust height to reduce blank space
+  units = "in"      # Use inches for dimensions
+)
+```
